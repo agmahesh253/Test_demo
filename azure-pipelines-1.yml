@@ -1,0 +1,39 @@
+trigger:
+  batch: true
+  branches:
+    include:
+    - none
+
+variables:
+- name: remote_git
+  value: rangerrom/africa-p46502-uk11112
+
+stages:
+- stage: AEM_Cloud_Manager
+  jobs:
+  - job: Push_To_Cloudmanager
+    timeoutInMinutes: 10
+    condition: succeeded()
+    workspace:
+      clean: all
+    steps:
+    #steps: [ script | bash | pwsh | powershell | checkout | task | templateReference ]
+    
+    - task: AzureKeyVault@1
+      displayName: pull secrets
+      inputs:
+        azureSubscription: PROD
+        KeyVaultName: mykeyvault
+        SecretsFilter: aem_dm_cm_credentials
+    - checkout: self
+      clean: true
+    - bash: echo "##vso[task.setvariable variable=git_ref]https://$(aem_dm_cm_credentials)@git.cloudmanager.adobe.com/$(remote_git)/"
+      displayName: Set remote adobe git URL
+    - bash: git remote add adobe $(git_ref)
+      displayName: Add git remote to Adobe CloudManager
+    - bash: cat .git/config
+      displayName: Show git config
+    - bash: git checkout $(Build.SourceBranchName)
+      displayName: Checkout $(Build.SourceBranchName) branch
+    - bash: git push -f -v adobe $(Build.SourceBranchName)
+      displayName: Push changes from $(Build.SourceBranchName) branch to Adobe CloudManager
